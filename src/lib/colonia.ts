@@ -10,8 +10,8 @@ export type ExtraElegido = { extra: string; quincena: number };
 
 /** Edad cumplida al 4/1/2027 (fecha ISO yyyy-mm-dd). */
 export function edadAlCorte(nacimiento: string): number {
-  const [y, m, d] = nacimiento.split("-").map(Number);
-  const [cy, cm, cd] = FECHA_CORTE.split("-").map(Number);
+  const [y = 0, m = 0, d = 0] = nacimiento.split("-").map(Number);
+  const [cy = 0, cm = 0, cd = 0] = FECHA_CORTE.split("-").map(Number);
   let edad = cy - y;
   if (cm < m || (cm === m && cd < d)) edad--;
   return edad;
