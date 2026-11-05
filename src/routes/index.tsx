@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, CalendarDays, Check, Clock, Download, MapPin, Sun, Sunset, TreePine } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -69,6 +69,8 @@ function Index() {
   const [confirmarBaja, setConfirmarBaja] = useState<number | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [confirmada, setConfirmada] = useState<{ total: number } | null>(null);
+
+  useEffect(() => { window.scrollTo({ top: 0 }); }, [paso, confirmada]);
 
   const grupo = cat?.grupos.find((g) => g.id === grupoId) ?? null;
   const sede = cat?.sedes.find((s) => s.id === sedeId) ?? null;

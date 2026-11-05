@@ -28,3 +28,7 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Project rules
+- Enrollment is confirmed only through the `confirmar_inscripcion` SQL function, which recomputes group, places and total server-side; why: places must decrement atomically and the browser total can't be trusted.
+- Pricing/age/place rules live in `src/lib/colonia.ts` with tests in `colonia.test.ts`; why: one source for the UI's math.
