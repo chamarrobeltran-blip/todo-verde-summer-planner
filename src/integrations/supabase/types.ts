@@ -14,13 +14,262 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      cupo_ocupado: {
+        Row: {
+          grupo: string
+          inscriptos: number
+          quincena: number
+          sede: string
+        }
+        Insert: {
+          grupo: string
+          inscriptos?: number
+          quincena: number
+          sede: string
+        }
+        Update: {
+          grupo?: string
+          inscriptos?: number
+          quincena?: number
+          sede?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cupo_ocupado_grupo_fkey"
+            columns: ["grupo"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cupo_ocupado_quincena_fkey"
+            columns: ["quincena"]
+            isOneToOne: false
+            referencedRelation: "quincenas"
+            referencedColumns: ["numero"]
+          },
+          {
+            foreignKeyName: "cupo_ocupado_sede_fkey"
+            columns: ["sede"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      extra_ocupado: {
+        Row: {
+          extra: string
+          inscriptos: number
+          quincena: number
+        }
+        Insert: {
+          extra: string
+          inscriptos?: number
+          quincena: number
+        }
+        Update: {
+          extra?: string
+          inscriptos?: number
+          quincena?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extra_ocupado_extra_fkey"
+            columns: ["extra"]
+            isOneToOne: false
+            referencedRelation: "extras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extra_ocupado_quincena_fkey"
+            columns: ["quincena"]
+            isOneToOne: false
+            referencedRelation: "quincenas"
+            referencedColumns: ["numero"]
+          },
+        ]
+      }
+      extras: {
+        Row: {
+          cupo: number
+          grupos_excluidos: string[]
+          id: string
+          nombre: string
+          precio: number
+          turno: string
+        }
+        Insert: {
+          cupo: number
+          grupos_excluidos?: string[]
+          id: string
+          nombre: string
+          precio: number
+          turno: string
+        }
+        Update: {
+          cupo?: number
+          grupos_excluidos?: string[]
+          id?: string
+          nombre?: string
+          precio?: number
+          turno?: string
+        }
+        Relationships: []
+      }
+      grupos: {
+        Row: {
+          cupo_barda: number
+          cupo_confluencia: number
+          edad_max: number
+          edad_min: number
+          id: string
+          nombre: string
+        }
+        Insert: {
+          cupo_barda: number
+          cupo_confluencia: number
+          edad_max: number
+          edad_min: number
+          id: string
+          nombre: string
+        }
+        Update: {
+          cupo_barda?: number
+          cupo_confluencia?: number
+          edad_max?: number
+          edad_min?: number
+          id?: string
+          nombre?: string
+        }
+        Relationships: []
+      }
+      inscripciones: {
+        Row: {
+          adulto: string
+          created_at: string
+          email: string
+          extras: Json
+          fecha_nacimiento: string
+          grupo: string
+          id: string
+          nino: string
+          quincenas: number[]
+          sede: string
+          telefono: string
+          total: number
+        }
+        Insert: {
+          adulto: string
+          created_at?: string
+          email: string
+          extras?: Json
+          fecha_nacimiento: string
+          grupo: string
+          id?: string
+          nino: string
+          quincenas: number[]
+          sede: string
+          telefono: string
+          total: number
+        }
+        Update: {
+          adulto?: string
+          created_at?: string
+          email?: string
+          extras?: Json
+          fecha_nacimiento?: string
+          grupo?: string
+          id?: string
+          nino?: string
+          quincenas?: number[]
+          sede?: string
+          telefono?: string
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inscripciones_grupo_fkey"
+            columns: ["grupo"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inscripciones_sede_fkey"
+            columns: ["sede"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quincenas: {
+        Row: {
+          cuota: number
+          fecha_fin: string
+          fecha_inicio: string
+          numero: number
+          tematica: string
+        }
+        Insert: {
+          cuota?: number
+          fecha_fin: string
+          fecha_inicio: string
+          numero: number
+          tematica: string
+        }
+        Update: {
+          cuota?: number
+          fecha_fin?: string
+          fecha_inicio?: string
+          numero?: number
+          tematica?: string
+        }
+        Relationships: []
+      }
+      sedes: {
+        Row: {
+          horario_fin: string
+          horario_inicio: string
+          id: string
+          nombre: string
+          turno: string
+        }
+        Insert: {
+          horario_fin: string
+          horario_inicio: string
+          id: string
+          nombre: string
+          turno: string
+        }
+        Update: {
+          horario_fin?: string
+          horario_inicio?: string
+          id?: string
+          nombre?: string
+          turno?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      confirmar_inscripcion: {
+        Args: {
+          p_adulto: string
+          p_email: string
+          p_extras: Json
+          p_fecha_nacimiento: string
+          p_nino: string
+          p_quincenas: number[]
+          p_sede: string
+          p_telefono: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
