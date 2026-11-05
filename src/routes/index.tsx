@@ -164,10 +164,6 @@ function Index() {
     setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
 
-  if (paso === -1 || (paso === 0 && !grupoId && datos.nino === "" && !sessionStarted)) {
-    // handled below
-  }
-
   return (
     <div className="min-h-screen bg-background font-sans text-foreground">
       <Header sede={paso > 0 ? sede : null} />
@@ -315,7 +311,6 @@ function Index() {
   );
 }
 
-const sessionStarted = false;
 const iniciado = (p: number) => p > 0;
 
 function Header({ sede }: { sede: Sede | null }) {
