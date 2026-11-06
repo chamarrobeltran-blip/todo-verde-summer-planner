@@ -1,9 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, CalendarDays, Check, Clock, Download, MapPin, Sun, Sunset, TreePine } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { cargar, confirmarLocal, enviarConfirmacionSimulada, guardar, reiniciar, type Catalogo } from "@/lib/demo-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,31 +33,12 @@ export const Route = createFileRoute("/")({
 });
 
 type Datos = { nino: string; nacimiento: string; adulto: string; telefono: string; email: string };
-type Catalogo = {
-  sedes: Sede[]; grupos: Grupo[]; quincenas: Quincena[]; extras: Extra[];
-  cupos: { quincena: number; grupo: string; sede: string; inscriptos: number }[];
-  extrasOcup: { extra: string; quincena: number; inscriptos: number }[];
-};
-
-async function cargarCatalogo(): Promise<Catalogo> {
-  const [s, g, q, e, c, eo] = await Promise.all([
-    supabase.from("sedes").select("*"),
-    supabase.from("grupos").select("*").order("edad_min"),
-    supabase.from("quincenas").select("*").order("numero"),
-    supabase.from("extras").select("*"),
-    supabase.from("cupo_ocupado").select("*"),
-    supabase.from("extra_ocupado").select("*"),
-  ]);
-  const err = s.error || g.error || q.error || e.error || c.error || eo.error;
-  if (err) throw err;
-  return { sedes: s.data!, grupos: g.data!, quincenas: q.data!, extras: e.data!, cupos: c.data!, extrasOcup: eo.data! };
-}
-
 const PASOS = ["Datos", "Turno", "Quincenas", "Resumen"];
 
 function Index() {
-  const qc = useQueryClient();
-  const { data: cat, isLoading, error } = useQuery({ queryKey: ["catalogo"], queryFn: cargarCatalogo });
+  const [cat, setCat] = useState<Catalogo | null>(null);
+  useEffect(() => { setCat(cargar()); }, []);
+  const isLoading = !cat;
   const [paso, setPaso] = useState(0);
   const [datos, setDatos] = useState<Datos>({ nino: "", nacimiento: "", adulto: "", telefono: "", email: "" });
   const [grupoId, setGrupoId] = useState<string | null>(null);
@@ -137,19 +117,29 @@ function Index() {
   async function confirmar() {
     if (!sede) return;
     setEnviando(true);
-    const { data, error } = await supabase.rpc("confirmar_inscripcion", {
-      p_nino: datos.nino, p_fecha_nacimiento: datos.nacimiento, p_adulto: datos.adulto,
-      p_telefono: datos.telefono, p_email: datos.email, p_sede: sede.id,
-      p_quincenas: quincenas, p_extras: extras,
-    });
-    setEnviando(false);
-    if (error) {
-      toast.error(error.message);
-      qc.invalidateQueries({ queryKey: ["catalogo"] });
-      return;
+    try {
+      const r = confirmarLocal(cat!, { nino: datos.nino, nacimiento: datos.nacimiento, adulto: datos.adulto, telefono: datos.telefono, email: datos.email, sede: sede.id, quincenas, extras });
+      guardar(r.cat);
+      setCat(r.cat);
+      enviarConfirmacionSimulada(r.inscripcion);
+      setConfirmada({ total: r.inscripcion.total });
+      toast.success(`Le mandamos la confirmación a ${datos.email} (simulado).`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setEnviando(false);
     }
-    setConfirmada({ total: (data as { total: number }).total });
-    qc.invalidateQueries({ queryKey: ["catalogo"] });
+  }
+
+  function nuevaInscripcion() {
+    setPaso(0); setDatos({ nino: "", nacimiento: "", adulto: "", telefono: "", email: "" });
+    setGrupoId(null); setSedeId(null); setQuincenas([]); setExtras([]); setBajoDeCuatro(false); setConfirmada(null);
+  }
+
+  function reiniciarDemo() {
+    setCat(reiniciar());
+    nuevaInscripcion();
+    toast.success("Datos de ejemplo reiniciados.");
   }
 
   function descargarIcs() {
@@ -171,8 +161,7 @@ function Index() {
       <Header sede={paso > 0 ? sede : null} />
       <main className="mx-auto w-full max-w-3xl px-4 pb-32 pt-4 sm:px-6">
         {isLoading && <p className="py-20 text-center text-muted-foreground">Cargando la temporada…</p>}
-        {error && <p className="py-20 text-center text-destructive">No pudimos cargar los datos. Probá de nuevo en un rato.</p>}
-        {cat && !iniciado(paso) && <Inicio onStart={() => setPaso(0.5)} />}
+        {cat && !iniciado(paso) && <Inicio onStart={() => setPaso(0.5)} inscriptas={cat.inscripciones.length} onReset={reiniciarDemo} />}
         {cat && iniciado(paso) && !confirmada && (
           <>
             <Stepper paso={Math.floor(paso)} />
@@ -282,6 +271,7 @@ function Index() {
             <h2 className="font-display text-3xl font-extrabold">¡Listo, {datos.nino.split(" ")[0]} está adentro!</h2>
             <p className="text-muted-foreground">Te esperamos en {sede.nombre}, de {sede.horario_inicio} a {sede.horario_fin}. Total: <strong className="text-foreground">{pesos(confirmada.total)}</strong>.</p>
             <Button size="lg" onClick={descargarIcs} className="bg-accent text-accent-foreground hover:bg-accent/90"><Download /> Agendá las fechas (.ics)</Button>
+            <div><Button variant="outline" size="lg" onClick={nuevaInscripcion}>Inscribir a otro niño/a</Button></div>
           </section>
         )}
       </main>
@@ -335,7 +325,7 @@ function SedeChip({ sede }: { sede: Sede }) {
   );
 }
 
-function Inicio({ onStart }: { onStart: () => void }) {
+function Inicio({ onStart, inscriptas, onReset }: { onStart: () => void; inscriptas: number; onReset: () => void }) {
   return (
     <section className="flex min-h-[75vh] flex-col justify-center py-10">
       <p className="mb-3 text-sm font-bold uppercase tracking-widest text-accent">Verano 2027 · Alto Valle</p>
@@ -350,6 +340,10 @@ function Inicio({ onStart }: { onStart: () => void }) {
       <Button size="lg" onClick={onStart} className="mt-8 h-14 w-full max-w-xs bg-accent text-base font-bold text-accent-foreground hover:bg-accent/90 sm:w-auto">
         Empezar inscripción <ArrowRight />
       </Button>
+      <div className="mt-8 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+        <span>{inscriptas} inscripción{inscriptas === 1 ? "" : "es"} guardada{inscriptas === 1 ? "" : "s"} en este teléfono.</span>
+        <button type="button" onClick={onReset} className="font-semibold text-primary underline underline-offset-4">Reiniciar datos de ejemplo</button>
+      </div>
     </section>
   );
 }
