@@ -34,6 +34,28 @@ CRITERIOS DE ACEPTACIÓN
 STACK
 TanStack Start + Supabase.
 
+## Cómo arrancarlo
+
+```sh
+npm i        # o bun install
+npm run dev  # abre http://localhost:8080
+npm test     # reglas de precio, edad y cupos
+```
+
+No hace falta configurar nada: la primera vez que se abre, la app carga los datos de ejemplo.
+
+## Qué está simulado
+
+- **Sin backend.** Sedes, grupos, quincenas, extras, cupos ocupados e inscripciones viven en `localStorage` (clave `todo-verde:v1`), en `src/lib/demo-store.ts`.
+- **Confirmar inscripción** corre `confirmarLocal()`, que replica la regla del servidor: recalcula grupo por edad al 4/1/2027, verifica y resta lugares por quincena/grupo/sede, valida extras y calcula el total. Al integrar el backend, reemplazar esa llamada por la función real.
+- **Mail de confirmación**: `enviarConfirmacionSimulada()` solo escribe en la consola. No hay correo, WhatsApp ni pagos conectados.
+- **Datos de ejemplo**: algunos cupos vienen ocupados para mostrar «Sin lugar» (Chispas quincena 2 en Barda, Brotes quincena 1 en Confluencia, Cerámica quincena 3, Kayak quincena 4) y hay una inscripción precargada.
+
+## Cómo reiniciar los datos de ejemplo
+
+- En la pantalla de inicio: botón **«Reiniciar datos de ejemplo»**.
+- O desde la consola del navegador: `localStorage.removeItem("todo-verde:v1")` y recargar.
+
 This project was built with [Lovable](https://lovable.dev).
 
 **Live app**: https://todo-verde-summer-planner.lovable.app
