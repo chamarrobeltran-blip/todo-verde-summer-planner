@@ -1,8 +1,11 @@
 // Datos locales (localStorage). Kodarvia reemplaza esto por el backend real.
-import { cupoSede, edadAlCorte, grupoPorEdad, lugaresLibres, subtotalQuincenas, type Extra, type ExtraElegido, type Grupo, type Quincena, type Sede } from "./colonia";
+import { calcularTotal, cupoSede, edadAlCorte, grupoPorEdad, lugaresLibres, subtotalQuincenas, type Extra, type ExtraElegido, type Grupo, type Quincena, type Sede } from "./colonia";
+
+export type Autorizado = { nombre: string; parentesco: string; dni: string };
+export const PARENTESCOS = ["Madre", "Padre", "Abuela/o", "Tía/o", "Hermana/o mayor", "Otro familiar", "Persona de confianza"];
 
 export type Inscripcion = {
-  id: string; creada: string; nino: string; fecha_nacimiento: string; adulto: string; telefono: string; email: string;
+  id: string; creada: string; estado: "activa" | "cancelada"; autorizados: Autorizado[]; nino: string; fecha_nacimiento: string; adulto: string; telefono: string; email: string;
   sede: string; grupo: string; quincenas: number[]; extras: ExtraElegido[]; total: number;
 };
 export type Catalogo = {
@@ -54,7 +57,11 @@ export function seed(): Catalogo {
     ],
     inscripciones: [
       {
-        id: "demo-1", creada: "2026-11-02T14:20:00.000Z", nino: "Martina Quiroga", fecha_nacimiento: "2019-08-14",
+        id: "demo-1", creada: "2026-11-02T14:20:00.000Z", estado: "activa",
+        autorizados: [
+          { nombre: "Lucía Quiroga", parentesco: "Madre", dni: "31.456.789" },
+          { nombre: "Héctor Quiroga", parentesco: "Abuela/o", dni: "14.223.908" },
+        ], nino: "Martina Quiroga", fecha_nacimiento: "2019-08-14",
         adulto: "Lucía Quiroga", telefono: "299 456-7812", email: "lucia.quiroga@gmail.com", sede: "barda", grupo: "brotes",
         quincenas: [1, 2, 4], extras: [{ extra: "natacion", quincena: 1 }], total: 915000,
       },
@@ -66,7 +73,12 @@ export function cargar(): Catalogo {
   if (typeof window === "undefined") return seed();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as Catalogo;
+    if (raw) {
+      const c = JSON.parse(raw) as Catalogo;
+      // Datos guardados con una versión anterior: completar campos nuevos.
+      c.inscripciones = c.inscripciones.map((i) => ({ ...i, estado: i.estado ?? "activa", autorizados: i.autorizados ?? [] }));
+      return c;
+    }
   } catch { /* datos corruptos: se reinician */ }
   const s = seed();
   guardar(s);
@@ -75,7 +87,12 @@ export function cargar(): Catalogo {
 export function guardar(c: Catalogo) { localStorage.setItem(STORAGE_KEY, JSON.stringify(c)); }
 export function reiniciar(): Catalogo { const s = seed(); guardar(s); return s; }
 
-export type Solicitud = { nino: string; nacimiento: string; adulto: string; telefono: string; email: string; sede: string; quincenas: number[]; extras: ExtraElegido[] };
+export type Solicitud = { nino: string; nacimiento: string; adulto: string; telefono: string; email: string; sede: string; quincenas: number[]; extras: ExtraElegido[]; autorizados: Autorizado[] };
+
+/** Autorizados completos: nombre y parentesco cargados. */
+export function autorizadosValidos(a: Autorizado[]) {
+  return a.filter((x) => x.nombre.trim().length > 0 && x.parentesco.trim().length > 0);
+}
 
 /** Replica local de confirmar_inscripcion: recalcula grupo, lugares y total. Devuelve un catálogo nuevo. */
 export function confirmarLocal(cat: Catalogo, s: Solicitud): { cat: Catalogo; inscripcion: Inscripcion } {
@@ -83,6 +100,8 @@ export function confirmarLocal(cat: Catalogo, s: Solicitud): { cat: Catalogo; in
   if (!grupo) throw new Error("No entra en ninguno de nuestros grupos");
   const sede = cat.sedes.find((x) => x.id === s.sede);
   if (!sede) throw new Error("Elegí un turno");
+  const autorizados = autorizadosValidos(s.autorizados);
+  if (autorizados.length === 0) throw new Error("Cargá al menos una persona autorizada a retirar, con su parentesco");
   const quincenas = [...new Set(s.quincenas)].sort();
   if (!quincenas.length) throw new Error("Elegí al menos una quincena");
   const next: Catalogo = structuredClone(cat);
@@ -103,7 +122,7 @@ export function confirmarLocal(cat: Catalogo, s: Solicitud): { cat: Catalogo; in
     extrasTotal += ex.precio;
   }
   const inscripcion: Inscripcion = {
-    id: `ins-${Date.now()}`, creada: new Date().toISOString(), nino: s.nino, fecha_nacimiento: s.nacimiento, adulto: s.adulto,
+    id: `ins-${Date.now()}`, creada: new Date().toISOString(), estado: "activa", autorizados, nino: s.nino, fecha_nacimiento: s.nacimiento, adulto: s.adulto,
     telefono: s.telefono, email: s.email, sede: sede.id, grupo: grupo.id, quincenas, extras: s.extras,
     total: subtotalQuincenas(quincenas.length) + extrasTotal,
   };
@@ -114,4 +133,31 @@ export function confirmarLocal(cat: Catalogo, s: Solicitud): { cat: Catalogo; in
 /** Envío de mail simulado: Kodarvia lo conecta al proveedor real. */
 export function enviarConfirmacionSimulada(i: Inscripcion) {
   console.info("[simulado] mail de confirmación a", i.email, { id: i.id, total: i.total });
+}
+
+export type ResultadoBaja = { cat: Catalogo; totalAnterior: number; totalNuevo: number; perdioBeneficio: boolean; cancelada: boolean };
+
+/**
+ * Da de baja una quincena de una inscripción confirmada: devuelve el lugar a su sede y grupo,
+ * libera los extras de esa quincena y recalcula el total. Si era la única, cancela la inscripción.
+ */
+export function darDeBajaQuincena(cat: Catalogo, inscripcionId: string, numero: number): ResultadoBaja {
+  const next: Catalogo = structuredClone(cat);
+  const ins = next.inscripciones.find((i) => i.id === inscripcionId);
+  if (!ins || ins.estado === "cancelada") throw new Error("No encontramos esa inscripción");
+  if (!ins.quincenas.includes(numero)) throw new Error(`La quincena ${numero} no está en la inscripción`);
+  const totalAnterior = ins.total;
+  const perdioBeneficio = ins.quincenas.length === 4;
+  const fila = next.cupos.find((c) => c.quincena === numero && c.grupo === ins.grupo && c.sede === ins.sede);
+  if (fila) fila.inscriptos = Math.max(0, fila.inscriptos - 1);
+  for (const e of ins.extras.filter((x) => x.quincena === numero)) {
+    const o = next.extrasOcup.find((x) => x.extra === e.extra && x.quincena === numero);
+    if (o) o.inscriptos = Math.max(0, o.inscriptos - 1);
+  }
+  ins.quincenas = ins.quincenas.filter((q) => q !== numero);
+  ins.extras = ins.extras.filter((x) => x.quincena !== numero);
+  ins.total = calcularTotal(ins.quincenas.length, ins.extras, next.extras);
+  const cancelada = ins.quincenas.length === 0;
+  if (cancelada) ins.estado = "cancelada";
+  return { cat: next, totalAnterior, totalNuevo: ins.total, perdioBeneficio, cancelada };
 }

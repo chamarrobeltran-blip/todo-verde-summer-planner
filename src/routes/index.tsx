@@ -1,8 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, CalendarDays, Check, Clock, Download, MapPin, Sun, Sunset, TreePine } from "lucide-react";
-import { cargar, confirmarLocal, enviarConfirmacionSimulada, guardar, reiniciar, type Catalogo } from "@/lib/demo-store";
+import { ArrowLeft, ArrowRight, CalendarDays, Check, Clock, Download, MapPin, Plus, Sun, Sunset, TreePine, Trash2, UserCheck } from "lucide-react";
+import { PARENTESCOS, autorizadosValidos, cargar, confirmarLocal, enviarConfirmacionSimulada, guardar, reiniciar, type Autorizado, type Catalogo } from "@/lib/demo-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +41,7 @@ function Index() {
   const isLoading = !cat;
   const [paso, setPaso] = useState(0);
   const [datos, setDatos] = useState<Datos>({ nino: "", nacimiento: "", adulto: "", telefono: "", email: "" });
+  const [autorizados, setAutorizados] = useState<Autorizado[]>([{ nombre: "", parentesco: "", dni: "" }]);
   const [grupoId, setGrupoId] = useState<string | null>(null);
   const [sedeId, setSedeId] = useState<string | null>(null);
   const [quincenas, setQuincenas] = useState<number[]>([]);
@@ -118,7 +119,7 @@ function Index() {
     if (!sede) return;
     setEnviando(true);
     try {
-      const r = confirmarLocal(cat!, { nino: datos.nino, nacimiento: datos.nacimiento, adulto: datos.adulto, telefono: datos.telefono, email: datos.email, sede: sede.id, quincenas, extras });
+      const r = confirmarLocal(cat!, { nino: datos.nino, nacimiento: datos.nacimiento, adulto: datos.adulto, telefono: datos.telefono, email: datos.email, sede: sede.id, quincenas, extras, autorizados });
       guardar(r.cat);
       setCat(r.cat);
       enviarConfirmacionSimulada(r.inscripcion);
@@ -133,6 +134,7 @@ function Index() {
 
   function nuevaInscripcion() {
     setPaso(0); setDatos({ nino: "", nacimiento: "", adulto: "", telefono: "", email: "" });
+    setAutorizados([{ nombre: "", parentesco: "", dni: "" }]);
     setGrupoId(null); setSedeId(null); setQuincenas([]); setExtras([]); setBajoDeCuatro(false); setConfirmada(null);
   }
 
@@ -161,13 +163,14 @@ function Index() {
       <Header sede={paso > 0 ? sede : null} />
       <main className="mx-auto w-full max-w-3xl px-4 pb-32 pt-4 sm:px-6">
         {isLoading && <p className="py-20 text-center text-muted-foreground">Cargando la temporada…</p>}
-        {cat && !iniciado(paso) && <Inicio onStart={() => setPaso(0.5)} inscriptas={cat.inscripciones.length} onReset={reiniciarDemo} />}
+        {cat && !iniciado(paso) && <Inicio onStart={() => setPaso(0.5)} inscriptas={cat.inscripciones.filter((i) => i.estado === "activa").length} onReset={reiniciarDemo} />}
         {cat && iniciado(paso) && !confirmada && (
           <>
             <Stepper paso={Math.floor(paso)} />
             {paso === 0.5 && (
               <PasoDatos
                 datos={datos} setDatos={setDatos} grupos={cat.grupos}
+                autorizados={autorizados} setAutorizados={setAutorizados}
                 onNext={(g) => { setGrupoId(g.id); setPaso(1); }}
                 grupoFijo={grupo}
               />
@@ -241,6 +244,7 @@ function Index() {
                 <div className="divide-y rounded-2xl border bg-card">
                   <Fila k="Niño/a" v={`${datos.nino} · grupo ${grupo.nombre}`} />
                   <Fila k="Adulto responsable" v={`${datos.adulto} · ${datos.telefono}`} />
+                  <Fila k="Pueden retirarlo/a" v={autorizadosValidos(autorizados).map((a) => `${a.nombre} (${a.parentesco})`).join(", ")} />
                   <Fila k="Sede" v={`${sede.nombre} · turno ${sede.turno}, ${sede.horario_inicio} a ${sede.horario_fin}`} />
                   {cat.quincenas.filter((q) => quincenas.includes(q.numero)).map((q) => (
                     <div key={q.numero} className="px-4 py-3">
@@ -271,7 +275,10 @@ function Index() {
             <h2 className="font-display text-3xl font-extrabold">¡Listo, {datos.nino.split(" ")[0]} está adentro!</h2>
             <p className="text-muted-foreground">Te esperamos en {sede.nombre}, de {sede.horario_inicio} a {sede.horario_fin}. Total: <strong className="text-foreground">{pesos(confirmada.total)}</strong>.</p>
             <Button size="lg" onClick={descargarIcs} className="bg-accent text-accent-foreground hover:bg-accent/90"><Download /> Agendá las fechas (.ics)</Button>
-            <div><Button variant="outline" size="lg" onClick={nuevaInscripcion}>Inscribir a otro niño/a</Button></div>
+            <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+              <Button asChild variant="outline" size="lg"><Link to="/mi-inscripcion">Ver mi inscripción</Link></Button>
+              <Button variant="outline" size="lg" onClick={nuevaInscripcion}>Inscribir a otro niño/a</Button>
+            </div>
           </section>
         )}
       </main>
@@ -310,7 +317,10 @@ function Header({ sede }: { sede: Sede | null }) {
     <header className="sticky top-0 z-10 border-b bg-background/90 backdrop-blur">
       <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <div className="flex items-center gap-2 font-display text-lg font-extrabold text-primary"><TreePine className="size-6" />Todo Verde</div>
-        {sede && <SedeChip sede={sede} />}
+        <div className="flex items-center gap-2">
+          {sede && <span className="hidden sm:block"><SedeChip sede={sede} /></span>}
+          <Link to="/mi-inscripcion" className="rounded-full border px-3 py-1.5 text-xs font-bold text-primary hover:bg-secondary">Mi inscripción</Link>
+        </div>
       </div>
     </header>
   );
@@ -341,7 +351,7 @@ function Inicio({ onStart, inscriptas, onReset }: { onStart: () => void; inscrip
         Empezar inscripción <ArrowRight />
       </Button>
       <div className="mt-8 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-        <span>{inscriptas} inscripción{inscriptas === 1 ? "" : "es"} guardada{inscriptas === 1 ? "" : "s"} en este teléfono.</span>
+        <Link to="/mi-inscripcion" className="font-semibold text-primary underline underline-offset-4">Ver mis inscripciones ({inscriptas})</Link>
         <button type="button" onClick={onReset} className="font-semibold text-primary underline underline-offset-4">Reiniciar datos de ejemplo</button>
       </div>
     </section>
@@ -385,8 +395,9 @@ function Nav({ onBack, onNext, nextDisabled, nextLabel = "Seguir", accent }: { o
   );
 }
 
-function PasoDatos({ datos, setDatos, grupos, onNext, grupoFijo }: {
+function PasoDatos({ datos, setDatos, grupos, onNext, grupoFijo, autorizados, setAutorizados }: {
   datos: Datos; setDatos: (d: Datos) => void; grupos: Grupo[]; onNext: (g: Grupo) => void; grupoFijo: Grupo | null;
+  autorizados: Autorizado[]; setAutorizados: (a: Autorizado[]) => void;
 }) {
   const [tocado, setTocado] = useState(false);
   const edad = datos.nacimiento ? edadAlCorte(datos.nacimiento) : null;
@@ -400,6 +411,9 @@ function PasoDatos({ datos, setDatos, grupos, onNext, grupoFijo }: {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(datos.email.trim())) e.email = "Revisá el email";
     return e;
   }, [datos]);
+  const autOk = autorizadosValidos(autorizados).length > 0;
+  const autIncompleto = autorizados.some((a) => (a.nombre.trim() || a.dni.trim()) && !a.parentesco) || autorizados.some((a) => a.parentesco && !a.nombre.trim());
+  const setAut = (i: number, k: keyof Autorizado, v: string) => setAutorizados(autorizados.map((a, j) => (j === i ? { ...a, [k]: v } : a)));
   const fuera = edad !== null && !grupo;
   const campo = (k: keyof Datos, label: string, type = "text", extra?: Record<string, string>) => (
     <div className="space-y-1.5">
@@ -423,7 +437,49 @@ function PasoDatos({ datos, setDatos, grupos, onNext, grupoFijo }: {
       {campo("adulto", "Nombre del adulto responsable")}
       {campo("telefono", "Teléfono", "tel")}
       {campo("email", "Email", "email")}
-      <Nav onNext={() => { setTocado(true); if (Object.keys(errores).length === 0 && grupo) onNext(grupoFijo ?? grupo); }} nextDisabled={fuera} />
+      <fieldset className="space-y-3 rounded-2xl border bg-card p-4">
+        <legend className="flex items-center gap-1.5 px-1 font-display text-lg font-semibold"><UserCheck className="size-5 text-primary" />Personas autorizadas a retirar</legend>
+        <p className="text-sm text-muted-foreground">Solo estas personas pueden buscarlo/a. Cargá al menos una.</p>
+        {autorizados.map((a, i) => (
+          <div key={i} className="space-y-2 rounded-xl bg-secondary/50 p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Persona {i + 1}</span>
+              {autorizados.length > 1 && (
+                <button type="button" onClick={() => setAutorizados(autorizados.filter((_, j) => j !== i))} className="inline-flex items-center gap-1 text-xs font-semibold text-destructive" aria-label={`Quitar persona ${i + 1}`}>
+                  <Trash2 className="size-3.5" />Quitar
+                </button>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor={`aut-nombre-${i}`}>Nombre y apellido</Label>
+              <Input id={`aut-nombre-${i}`} maxLength={100} value={a.nombre} onChange={(e) => setAut(i, "nombre", e.target.value)} className="h-12 bg-card text-base" />
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor={`aut-par-${i}`}>Parentesco</Label>
+                <select id={`aut-par-${i}`} value={a.parentesco} onChange={(e) => setAut(i, "parentesco", e.target.value)}
+                  className="h-12 w-full rounded-md border border-input bg-card px-3 text-base">
+                  <option value="">Elegí…</option>
+                  {PARENTESCOS.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor={`aut-dni-${i}`}>DNI (opcional)</Label>
+                <Input id={`aut-dni-${i}`} inputMode="numeric" maxLength={15} value={a.dni} onChange={(e) => setAut(i, "dni", e.target.value)} className="h-12 bg-card text-base" />
+              </div>
+            </div>
+          </div>
+        ))}
+        {autorizados.length < 5 && (
+          <Button type="button" variant="outline" onClick={() => setAutorizados([...autorizados, { nombre: "", parentesco: "", dni: "" }])}><Plus />Sumar otra persona</Button>
+        )}
+        {tocado && (!autOk || autIncompleto) && (
+          <p role="alert" className="text-sm text-destructive">
+            {!autOk ? "Cargá al menos una persona autorizada con su parentesco." : "Completá nombre y parentesco de cada persona, o quitala."}
+          </p>
+        )}
+      </fieldset>
+      <Nav onNext={() => { setTocado(true); if (Object.keys(errores).length === 0 && grupo && autOk && !autIncompleto) onNext(grupoFijo ?? grupo); }} nextDisabled={fuera} />
     </section>
   );
 }

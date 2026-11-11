@@ -30,5 +30,5 @@ use the editor.
 <!-- LOVABLE:END -->
 
 ## Project rules
-- Enrollment is confirmed only through the `confirmar_inscripcion` SQL function, which recomputes group, places and total server-side; why: places must decrement atomically and the browser total can't be trusted.
+- No backend for now: all data lives in localStorage via `src/lib/demo-store.ts`; enrollment (`confirmarLocal`) and quincena cancellation (`darDeBajaQuincena`) recompute group, places and total there, tested in `demo-store.test.ts`; why: the integrator (Kodarvia) wires the real backend and swaps these calls.
 - Pricing/age/place rules live in `src/lib/colonia.ts` with tests in `colonia.test.ts`; why: one source for the UI's math.
