@@ -337,17 +337,17 @@ function SedeChip({ sede }: { sede: Sede }) {
 
 function Inicio({ onStart, inscriptas, onReset }: { onStart: () => void; inscriptas: number; onReset: () => void }) {
   return (
-    <section className="flex min-h-[75vh] flex-col justify-center py-10">
+    <section className="flex min-h-[75vh] flex-col justify-center py-4 sm:py-10">
       <p className="mb-3 text-sm font-bold uppercase tracking-widest text-accent">Verano 2027 · Alto Valle</p>
-      <h1 className="font-display text-5xl font-extrabold leading-[1.05] text-primary sm:text-7xl">Colonia<br />Todo Verde</h1>
-      <p className="mt-6 max-w-xl text-lg text-muted-foreground">
+      <h1 className="font-display text-4xl font-extrabold leading-[1.05] text-primary sm:text-7xl">Colonia<br />Todo Verde</h1>
+      <p className="mt-3 max-w-xl text-base text-muted-foreground sm:mt-6 sm:text-lg">
         Álamos, río y mucho juego. Elegí el turno, sumá las quincenas que quieras y mirá el precio al toque. Te lleva cinco minutos.
       </p>
-      <div className="mt-6 grid max-w-xl gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl bg-barda-soft p-4 text-barda"><Sun className="mb-1 size-5" /><p className="font-bold">Mañana · Sede Barda</p><p className="text-sm">9:00 a 13:00</p></div>
-        <div className="rounded-2xl bg-confluencia-soft p-4 text-confluencia"><Sunset className="mb-1 size-5" /><p className="font-bold">Tarde · Sede Confluencia</p><p className="text-sm">13:30 a 17:30</p></div>
+      <div className="mt-4 grid max-w-xl grid-cols-2 gap-2 sm:mt-6 sm:gap-3">
+        <div className="rounded-2xl bg-barda-soft p-3 sm:p-4 text-barda"><Sun className="mb-1 size-5" /><p className="font-bold">Mañana · Sede Barda</p><p className="text-sm">9:00 a 13:00</p></div>
+        <div className="rounded-2xl bg-confluencia-soft p-3 sm:p-4 text-confluencia"><Sunset className="mb-1 size-5" /><p className="font-bold">Tarde · Sede Confluencia</p><p className="text-sm">13:30 a 17:30</p></div>
       </div>
-      <Button size="lg" onClick={onStart} className="mt-8 h-14 w-full max-w-xs bg-accent text-base font-bold text-accent-foreground hover:bg-accent/90 sm:w-auto">
+      <Button size="lg" onClick={onStart} className="mt-5 h-14 w-full bg-accent sm:mt-8 sm:max-w-xs text-base font-bold text-accent-foreground hover:bg-accent/90 sm:w-auto">
         Empezar inscripción <ArrowRight />
       </Button>
       <div className="mt-8 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
